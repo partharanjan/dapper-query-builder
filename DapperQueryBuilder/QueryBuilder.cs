@@ -9,6 +9,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using static DapperQueryBuilder.Query.LikeConditionQuery;
 
 namespace DapperQueryBuilder
 {
@@ -17,7 +18,7 @@ namespace DapperQueryBuilder
         #region -> For Private
         private Dictionary<string, object> _updateColumns;
         private LinqHelper<TEntity> _linqHelper;
-        private TEntity _entity;
+        public TEntity _entity;
         #endregion
 
         #region -> For Properties
@@ -47,9 +48,10 @@ namespace DapperQueryBuilder
             GroupBy = new List<string>();
         }
 
-        public QueryBuilder<TEntity> Where(string columnName, string operatorName, object value)
+        public QueryBuilder<TEntity> Where<TField>(Expression<Func<TEntity, TField>> field, string operatorName, object value, string condition = "AND")
         {
-            Conditions.Add(new ConditionQuery(null, columnName, operatorName, value));
+            var memberExpression = field.Body as MemberExpression;
+            Conditions.Add(new ConditionQuery(null, memberExpression.Member.Name, operatorName, value));
             return this;
         }
 
@@ -59,21 +61,24 @@ namespace DapperQueryBuilder
             return this;
         }
 
-        public QueryBuilder<TEntity> Where(string columnName, string operatorName, object value, string condition = "AND")
+        public QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, object fromValue, object toValue, string condition = "AND")
         {
-            Conditions.Add(new ConditionQuery(condition, columnName, operatorName, value));
+            var memberExpression = field.Body as MemberExpression;
+            Conditions.Add(new BetweenConditionQuery(condition, memberExpression.Member.Name, fromValue, toValue));
             return this;
         }
 
-        public QueryBuilder<TEntity> WhereBetween(string columnName, object fromValue, object toValue, string condition = "AND")
+        public QueryBuilder<TEntity> WhereIn<T, TField>(Expression<Func<TEntity, TField>> field, List<T> items, string condition = "AND")
         {
-            Conditions.Add(new BetweenConditionQuery(condition, columnName, fromValue, toValue));
+            var memberExpression = field.Body as MemberExpression;
+            Conditions.Add(new InConditionQuery(condition, memberExpression.Member.Name, "=", items.ToArray()));
             return this;
         }
 
-        public QueryBuilder<TEntity> WhereIn<T>(string columnName, List<T> items, string condition = "AND")
+        public QueryBuilder<TEntity> Like<TField>(Expression<Func<TEntity, TField>> field, LikeConditionType likeCondition, string value, string condition = "AND")
         {
-            Conditions.Add(new InConditionQuery(condition, columnName, "=", items.ToArray()));
+            var memberExpression = field.Body as MemberExpression;
+            Conditions.Add(new LikeConditionQuery(condition, memberExpression.Member.Name, likeCondition, value));
             return this;
         }
 
@@ -195,7 +200,7 @@ namespace DapperQueryBuilder
                     else if (type == typeof(InConditionQuery))
                     {
                         #region -> For In
-                        if (dirPramas.ContainsKey(item.Column))
+                        if (!dirPramas.ContainsKey(item.Column))
                         {
                             dirPramas.Add(item.Column, item.Value);
                             stringBuilder.Append($" {item.Condition} {item.Column} {item.Operator} any(@{item.Column}) ");
@@ -214,6 +219,36 @@ namespace DapperQueryBuilder
                             dirPramas.Add(from_column_name, betweenItem.FromValue);
                             dirPramas.Add(to_column_name, betweenItem.ToValue);
                             stringBuilder.Append($" {item.Condition} {columnName} between @{from_column_name} AND @{to_column_name} ");
+                        }
+                        #endregion
+                    }
+                    else if(type==typeof(LikeConditionQuery))
+                    {
+                        #region -> For Like
+                        var likeItem = (LikeConditionQuery)item;
+                        if (!dirPramas.ContainsKey(item.Column))
+                        {
+                            stringBuilder.Append($" {item.Condition} {item.Column} like @wild_card_search ");
+                            string value = Convert.ToString(item.Value);
+                            switch (likeItem.LikeType)
+                            {
+                                case LikeConditionType.StartsWith:
+                                    {
+                                        value = $"{value}%";
+                                    }
+                                    break;
+                                case LikeConditionType.EndsWith:
+                                    {
+                                        value = $"%{value}";
+                                    }
+                                    break;
+                                case LikeConditionType.Contains:
+                                    {
+                                        value = $"%{value}%";
+                                    }
+                                    break;
+                            }
+                            dirPramas.Add("wild_card_search", value);
                         }
                         #endregion
                     }

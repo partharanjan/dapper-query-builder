@@ -6,8 +6,13 @@
     <Authors>Partha Ranjan Nayak</Authors>
     <RepositoryUrl>https://github.com/partharanjan/dapper-query-builder.git</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
-    <PackageTags>dapper</PackageTags>
+    <PackageTags>dapper query builder</PackageTags>
     <PackageProjectUrl>https://github.com/partharanjan/dapper-query-builder</PackageProjectUrl>
+    <PackageLicenseUrl>https://opensource.org/licenses/MIT</PackageLicenseUrl>
+    <Description>Dapper Query builder</Description>
+    <PackageReleaseNotes>Basic CRUD operation</PackageReleaseNotes>
+    <Product>Query Builder</Product>
+    <Company>Partha Ranjan Nayak</Company>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,18 +2,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using static DapperQueryBuilder.Query.LikeConditionQuery;
 
 namespace DapperQueryBuilder
 {
     public interface IQueryBuilder<TEntity> where TEntity : class
     {
-        QueryBuilder<TEntity> Where(string columnName, string operatorName, object value);
+        QueryBuilder<TEntity> Where<TField>(Expression<Func<TEntity, TField>> field, string operatorName, object value, string condition = "AND");
 
-        QueryBuilder<TEntity> Where(string columnName, string operatorName, object value, string condition = "AND");
+        QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, object fromValue, object toValue, string condition = "AND");
 
-        QueryBuilder<TEntity> WhereBetween(string columnName, object fromValue, object toValue, string condition = "AND");
+        QueryBuilder<TEntity> WhereIn<T, TField>(Expression<Func<TEntity, TField>> field, List<T> items, string condition = "AND");
 
-        QueryBuilder<TEntity> WhereIn<T>(string columnName, List<T> items, string condition = "AND");
+        QueryBuilder<TEntity> Like<TField>(Expression<Func<TEntity, TField>> field, LikeConditionType likeCondition, string value, string condition = "AND");
 
         QueryBuilder<TEntity> Where(Expression<Func<TEntity, bool>> expression);
 
