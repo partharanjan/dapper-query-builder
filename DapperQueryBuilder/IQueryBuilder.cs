@@ -21,6 +21,8 @@ namespace DapperQueryBuilder
 
         TEntity Set<TModel>(TModel model) where TModel : class;
 
+        TEntity Set<TModel>(TModel model, Func<Attribute, object> customAttributeFunc) where TModel : class;
+
         QueryBuilderResult Build(BuildType buildType);
     }
 }

@@ -20,10 +20,6 @@ namespace DapperQueryBuilder
         private TEntity _entity;
         #endregion
 
-        #region -> For Abstract
-        public abstract object GetCustomAttributeValue(Attribute attribute);
-        #endregion
-
         #region -> For Properties
         public List<ConditionQuery> Conditions { get; set; }
         public List<string> SelectColumns { get; set; }
@@ -91,7 +87,7 @@ namespace DapperQueryBuilder
             return this;
         }
 
-        public TEntity Set<TModel>(TModel model) where TModel : class
+        public TEntity Set<TModel>(TModel model,Func<Attribute,object> customAttributeFunc) where TModel : class
         {
             Type type = typeof(TEntity);
             _entity = (TEntity)Activator.CreateInstance(type);
@@ -102,7 +98,7 @@ namespace DapperQueryBuilder
                 var customAttributes = propertyInfo.GetCustomAttributes().ToList();
                 if(customAttributes.Count>0)
                 {
-                    var value = GetCustomAttributeValue(customAttributes[0]);
+                    var value = customAttributeFunc(customAttributes[0]);
                     propertyInfo.SetValue(_entity, value);
                 }
                 else
@@ -114,6 +110,23 @@ namespace DapperQueryBuilder
                     }
                 }
                 
+            });
+            return _entity;
+        }
+
+        public TEntity Set<TModel>(TModel model) where TModel : class
+        {
+            Type type = typeof(TEntity);
+            _entity = (TEntity)Activator.CreateInstance(type);
+            List<PropertyInfo> entityProperties = type.GetProperties().AsList();
+            List<PropertyInfo> modelProperties = model.GetType().GetProperties().AsList();
+            entityProperties.ForEach(propertyInfo =>
+            {
+                var modelPropertyInfo = modelProperties.Find(m => m.Name == propertyInfo.Name);
+                if (modelPropertyInfo != null)
+                {
+                    propertyInfo.SetValue(_entity, modelPropertyInfo.GetValue(model));
+                }
             });
             return _entity;
         }
@@ -347,18 +360,19 @@ namespace DapperQueryBuilder
         {
             if (_entity != null)
             {
-                var values = new Dictionary<string, object>();
+                var columnNameWithValue = new Dictionary<string, object>();
                 Type type = _entity.GetType();
                 PropertyInfo[] properties = type.GetProperties();
 
                 foreach (PropertyInfo propertyInfo in properties)
                 {
-                    values.Add(propertyInfo.Name, propertyInfo.GetValue(_entity));
+                    columnNameWithValue.Add(propertyInfo.Name, propertyInfo.GetValue(_entity));
                 }
-                if (values.Count > 0)
+
+                if (columnNameWithValue.Count > 0)
                 {
                     // get columns and values
-                    var columnsNames = values.Keys.Select(m => m).ToList();
+                    var columnsNames = columnNameWithValue.Keys.Select(m => m).ToList();
                     // generate sql
                     StringBuilder stringBuilder = new StringBuilder();
                     stringBuilder.Append($"insert into {EntityName} ");
@@ -366,17 +380,22 @@ namespace DapperQueryBuilder
                     stringBuilder.Append($" ({string.Join(',', columnsNames)}) ");
                     // append column values as dynamic parameters
                     stringBuilder.Append($" values ({string.Join(",", columnsNames.Select(m => "@" + m))})");
-
                     DynamicParameters parameters = new DynamicParameters();
-                    foreach (var value in values)
+                    foreach (var value in columnNameWithValue)
                     {
-                        parameters.Add($"@{value.Key.ToSnakeCase()}", value.Value);
+                        string name = EnableSnakeCase ? value.Key.ToSnakeCase() : value.Key;
+                        parameters.Add($"@{name}", value.Value);
                     }
+                    string query = stringBuilder.ToString();
                     return new QueryBuilderResult()
                     {
-                        Sql = stringBuilder.ToString(),
+                        Sql = EnableSnakeCase ? query.ToSnakeCase() : query,
                         Parameters = parameters
                     };
+                }
+                else
+                {
+                    throw new Exception("No properties found.");
                 }
             }
             return null;
