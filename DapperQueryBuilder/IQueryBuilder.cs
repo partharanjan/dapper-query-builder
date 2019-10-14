@@ -10,9 +10,9 @@ namespace DapperQueryBuilder
     {
         QueryBuilder<TEntity> Where<TField>(Expression<Func<TEntity, TField>> field, string operatorName, object value, string condition = "AND");
 
-        QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, object fromValue, object toValue, string condition = "AND");
+        QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, TField fromValue, TField toValue, string condition = "AND");
 
-        QueryBuilder<TEntity> WhereIn<T, TField>(Expression<Func<TEntity, TField>> field, List<T> items, string condition = "AND");
+        QueryBuilder<TEntity> WhereIn<TField>(Expression<Func<TEntity, TField>> field, List<TField> items, string condition = "AND");
 
         QueryBuilder<TEntity> Like<TField>(Expression<Func<TEntity, TField>> field, LikeConditionType likeCondition, string value, string condition = "AND");
 

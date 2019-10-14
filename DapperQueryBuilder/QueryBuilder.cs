@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using DapperQueryBuilder.Config;
 using DapperQueryBuilder.Helper;
 using DapperQueryBuilder.Query;
 using DapperQueryBuilder.Result;
@@ -18,6 +19,7 @@ namespace DapperQueryBuilder
         #region -> For Private
         private Dictionary<string, object> _updateColumns;
         private LinqHelper<TEntity> _linqHelper;
+        private DbConfig _dbConfig;
         public TEntity _entity;
         #endregion
 
@@ -31,21 +33,33 @@ namespace DapperQueryBuilder
         public string ExtraSql { get; set; }
         #endregion
 
-        public QueryBuilder()
+        public QueryBuilder(DbConfig dbConfig)
         {
-            Clear();
+            _dbConfig = dbConfig;
+            Init();
             // generate entity name
             GenerateEntityName();
         }
 
-        public void Clear()
+        public void Init()
         {
+            // init
             _updateColumns = new Dictionary<string, object>();
             _linqHelper = new LinqHelper<TEntity>();
             //
             Conditions = new List<ConditionQuery>();
             SelectColumns = new List<string>();
             GroupBy = new List<string>();
+        }
+
+        public QueryBuilder<TEntity> Select<TField>(Expression<Func<TEntity, TField>> field)
+        {
+            var memberExpression = field.Body as MemberExpression;
+            if (!SelectColumns.Contains(memberExpression.Member.Name))
+            {
+                SelectColumns.Add(memberExpression.Member.Name);
+            }
+            return this;
         }
 
         public QueryBuilder<TEntity> Where<TField>(Expression<Func<TEntity, TField>> field, string operatorName, object value, string condition = "AND")
@@ -61,14 +75,14 @@ namespace DapperQueryBuilder
             return this;
         }
 
-        public QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, object fromValue, object toValue, string condition = "AND")
+        public QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, TField fromValue, TField toValue, string condition = "AND")
         {
             var memberExpression = field.Body as MemberExpression;
             Conditions.Add(new BetweenConditionQuery(condition, memberExpression.Member.Name, fromValue, toValue));
             return this;
         }
 
-        public QueryBuilder<TEntity> WhereIn<T, TField>(Expression<Func<TEntity, TField>> field, List<T> items, string condition = "AND")
+        public QueryBuilder<TEntity> WhereIn<TField>(Expression<Func<TEntity, TField>> field, List<TField> items, string condition = "AND")
         {
             var memberExpression = field.Body as MemberExpression;
             Conditions.Add(new InConditionQuery(condition, memberExpression.Member.Name, "=", items.ToArray()));
@@ -203,7 +217,14 @@ namespace DapperQueryBuilder
                         if (!dirPramas.ContainsKey(item.Column))
                         {
                             dirPramas.Add(item.Column, item.Value);
-                            stringBuilder.Append($" {item.Condition} {item.Column} {item.Operator} any(@{item.Column}) ");
+                            if (_dbConfig.Type == DbConfig.DbType.Postgres)
+                            {
+                                stringBuilder.Append($" {item.Condition} {item.Column} {item.Operator} any(@{item.Column}) ");
+                            }
+                            else
+                            {
+                                stringBuilder.Append($" {item.Condition} {item.Column} IN (@{item.Column}) ");
+                            }
                         }
                         #endregion
                     }
@@ -228,7 +249,15 @@ namespace DapperQueryBuilder
                         var likeItem = (LikeConditionQuery)item;
                         if (!dirPramas.ContainsKey(item.Column))
                         {
-                            stringBuilder.Append($" {item.Condition} {item.Column} like @wild_card_search ");
+                            if (_dbConfig.Type == DbConfig.DbType.Postgres)
+                            {
+                                stringBuilder.Append($" {item.Condition} LOWER({item.Column}) like LOWER(@wild_card_search) ");
+                            }
+                            else
+                            {
+                                stringBuilder.Append($" {item.Condition} {item.Column} like @wild_card_search ");
+                            }
+
                             string value = Convert.ToString(item.Value);
                             switch (likeItem.LikeType)
                             {

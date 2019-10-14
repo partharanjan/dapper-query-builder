@@ -45,6 +45,10 @@ namespace DapperQueryBuilder.Helper
             {
                 return Expression.Lambda(rightExpression).Compile().DynamicInvoke();
             }
+            else if(rightExpression.NodeType==ExpressionType.Convert)
+            {
+                return Expression.Lambda(rightExpression).Compile().DynamicInvoke();
+            }
             throw new Exception("No handler found for right expression");
         }
 
