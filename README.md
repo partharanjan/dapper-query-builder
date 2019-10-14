@@ -1,5 +1,5 @@
 # dapper-query-builder
-Build postgres query for Dapper
+Build query for Dapper
 
 # How to use
 ```
