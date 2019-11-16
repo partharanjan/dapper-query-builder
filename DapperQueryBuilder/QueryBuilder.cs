@@ -75,6 +75,12 @@ namespace DapperQueryBuilder
             return this;
         }
 
+        public QueryBuilder<TEntity> WhereOr(Expression<Func<TEntity, bool>> expression)
+        {
+            Conditions.Add(_linqHelper.GetQuery(expression, "OR"));
+            return this;
+        }
+
         public QueryBuilder<TEntity> WhereBetween<TField>(Expression<Func<TEntity, TField>> field, TField fromValue, TField toValue, string condition = "AND")
         {
             var memberExpression = field.Body as MemberExpression;
@@ -93,6 +99,15 @@ namespace DapperQueryBuilder
         {
             var memberExpression = field.Body as MemberExpression;
             Conditions.Add(new LikeConditionQuery(condition, memberExpression.Member.Name, likeCondition, value));
+            return this;
+        }
+
+        public QueryBuilder<TEntity> Like(List<string> fields, LikeConditionType likeCondition, string value, string condition = "AND")
+        {
+            fields.ForEach(m =>
+            {
+                Conditions.Add(new LikeConditionQuery(condition, m, likeCondition, value));
+            });
             return this;
         }
 
@@ -249,6 +264,12 @@ namespace DapperQueryBuilder
                         var likeItem = (LikeConditionQuery)item;
                         if (!dirPramas.ContainsKey(item.Column))
                         {
+                            // check for multiple search type
+                            if (dirPramas.ContainsKey("wild_card_search"))
+                            {
+                                item.Condition = " OR ";
+                            }
+
                             if (_dbConfig.Type == DbConfig.DbType.Postgres)
                             {
                                 stringBuilder.Append($" {item.Condition} LOWER({item.Column}) like LOWER(@wild_card_search) ");
@@ -258,26 +279,29 @@ namespace DapperQueryBuilder
                                 stringBuilder.Append($" {item.Condition} {item.Column} like @wild_card_search ");
                             }
 
-                            string value = Convert.ToString(item.Value);
-                            switch (likeItem.LikeType)
+                            if (!dirPramas.ContainsKey("wild_card_search"))
                             {
-                                case LikeConditionType.StartsWith:
-                                    {
-                                        value = $"{value}%";
-                                    }
-                                    break;
-                                case LikeConditionType.EndsWith:
-                                    {
-                                        value = $"%{value}";
-                                    }
-                                    break;
-                                case LikeConditionType.Contains:
-                                    {
-                                        value = $"%{value}%";
-                                    }
-                                    break;
+                                string value = Convert.ToString(item.Value);
+                                switch (likeItem.LikeType)
+                                {
+                                    case LikeConditionType.StartsWith:
+                                        {
+                                            value = $"{value}%";
+                                        }
+                                        break;
+                                    case LikeConditionType.EndsWith:
+                                        {
+                                            value = $"%{value}";
+                                        }
+                                        break;
+                                    case LikeConditionType.Contains:
+                                        {
+                                            value = $"%{value}%";
+                                        }
+                                        break;
+                                }
+                                dirPramas.Add("wild_card_search", value);
                             }
-                            dirPramas.Add("wild_card_search", value);
                         }
                         #endregion
                     }

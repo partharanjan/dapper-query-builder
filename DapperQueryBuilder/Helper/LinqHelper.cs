@@ -8,10 +8,10 @@ namespace DapperQueryBuilder.Helper
 {
     internal class LinqHelper<TEntity>
     {
-        public ConditionQuery GetQuery(Expression<Func<TEntity, bool>> expression)
+        public ConditionQuery GetQuery(Expression<Func<TEntity, bool>> expression, string condition = null)
         {
             var binaryExpression = expression.Body as BinaryExpression;
-            return new ConditionQuery(null, GetColumn(binaryExpression.Left), GetOperator(binaryExpression.NodeType), GetValue(binaryExpression.Right));
+            return new ConditionQuery(condition, GetColumn(binaryExpression.Left), GetOperator(binaryExpression.NodeType), GetValue(binaryExpression.Right));
         }
 
         private string GetColumn(Expression leftExpression)
